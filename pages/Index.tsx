@@ -19,19 +19,34 @@ const Index = () => {
     setGameState('loading');
     
     try {
-      // Fetch two random Pokémon
-      const [playerRaw, opponentRaw] = await Promise.all([
-        pokeApi.fetchRandomPokemon(),
-        pokeApi.fetchRandomPokemon(),
-      ]);
+      let playerData: Awaited<ReturnType<typeof adaptPokemon>>;
+      let opponentData: Awaited<ReturnType<typeof adaptPokemon>>;
 
-      const playerData = await adaptPokemon(playerRaw);
-      const opponentData = await adaptPokemon(opponentRaw);
+      let attempts = 0;
+      while (true) {
+        if (attempts > 5) {
+          throw new Error('Failed to find suitable Pokémon after multiple attempts.');
+        }
 
-      // Make sure they have moves
-      if (playerData.moves.length === 0 || opponentData.moves.length === 0) {
-        toast.error('Failed to load Pokémon moves. Retrying...');
-        return initializeBattle();
+        const [playerRaw, opponentRaw] = await Promise.all([
+          pokeApi.fetchRandomPokemon(),
+          pokeApi.fetchRandomPokemon(),
+        ]);
+
+        playerData = await adaptPokemon(playerRaw);
+        opponentData = await adaptPokemon(opponentRaw);
+
+        console.log('Player Data:', playerData);
+        console.log('Opponent Data:', opponentData);
+
+        if (playerData.moves.length > 0 && opponentData.moves.length > 0) {
+          break; // Success
+        }
+        
+        attempts++;
+        toast.info('Could not find Pokémon with moves, trying again...');
+        // Optional: add a small delay
+        await new Promise(res => setTimeout(res, 500));
       }
 
       const playerChar: Character = {
